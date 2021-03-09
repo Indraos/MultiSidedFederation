@@ -9,6 +9,7 @@ class Server:
         transmission_criterion,
     ):
         self.estimate_single = np.zeros((len(self.supply_clients, self.demand_clients)))
+        self.estiamte_aggregated = np.zeros((len(self.demand_clients, self.demand_clients)))
 
     def run_demand_auction():
         for client in self.demand_clients:
@@ -25,6 +26,10 @@ class Server:
             receiver.send_models()
         for receiver in self.demand_clients:
             receiver.evaluate()
+        """
+        from here: compute median evaluations for all the models that agents produced in the mean-time;
+        Run the circuit auction.
+        """
         np.median(self.estimate_single, axis=1)
 
     def visualize_values():
