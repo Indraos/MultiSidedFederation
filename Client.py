@@ -1,24 +1,38 @@
 class Client:
     def __init__():
+        self.receivers = []
         pass
 
-    def send_models():
+    def send_model():
+        """
+        Send model to each client in self.receivers.
+        """
 
 
 class DemandClient(Client):
-    def __init__(self, train_dl, optimizer, test_dl, criterion, initial_model):
+    def __init__(self, train_dl, optimizer, test_dl, criterion, initial_model, bid):
+        self.__super__()
         self.receivers = []
+        self.received_models = []
+        self.evaluated_models = []
+        self.bid = bid
 
-    def aggregate(models):
+    def aggregate():
+        """
+        Aggregate all received models and append models to received models
+        """
         return model
 
-    def evaluate(model):
+    def evaluate():
+        """
+        Evaluate all models in received_models and append to evaluated_models
+        """
         pass
 
-    def bid(bid: float):
-        self._bid = bid
-
     def pay(amount):
+        """
+        Change the amount to bid by a value
+        """
         self.pay += amount
 
     def send_models():
@@ -32,9 +46,15 @@ class SupplyClient(Client):
         self.receivers = []
 
     def train():
+        """
+        Train one round using data from the model
+        """
         return model
 
     def send_models():
+        """
+        Send models to all clients in receivers.
+        """
         return model
 
 
