@@ -27,17 +27,20 @@ import time
 import pickle
 import PIL
 
-transform = tt.Compose([tt.ToTensor(),
-					tt.Normalize((0.1307,), (0.3081,))])
-
-train_ds = MNIST(root='.', train=True, download=True, transform=transform)
-test_ds = MNIST(root='.', train=False, download=True, transform=transform)
+import random
+import string
 
 # transform = tt.Compose([tt.ToTensor(),
-#                     tt.Normalize((0.2860,), (0.3530,))])
+# 					tt.Normalize((0.1307,), (0.3081,))])
 
-# train_ds = FashionMNIST(root='.', train=True, download=True, transform=transform)
-# test_ds = FashionMNIST(root='.', train=False, download=True, transform=transform)
+# train_ds = MNIST(root='.', train=True, download=True, transform=transform)
+# test_ds = MNIST(root='.', train=False, download=True, transform=transform)
+
+transform = tt.Compose([tt.ToTensor(),
+                    tt.Normalize((0.2860,), (0.3530,))])
+
+train_ds = FashionMNIST(root='.', train=True, download=True, transform=transform)
+test_ds = FashionMNIST(root='.', train=False, download=True, transform=transform)
 
 batch_size=100
 
@@ -106,8 +109,8 @@ def iid_clients(train_ds, n):
 
 
 #Transmission function which takes bid and threshold as argument
-def transmission_criterion(bid, threshold):
-	return (1-np.exp(-bid)) > threshold
+def transmission_criterion(bid):
+	return 1-np.exp(-1 * bid)
 
 #n -> number of clients
 n = 3
@@ -116,18 +119,28 @@ clients = []
 client_dls = iid_clients(train_ds, n)
 
 for i in range(n):
-	clients.append(DemandClient(client_dls[i], test_dl, optimizer, criterion, model, device))
-	clients[i]
+	clients.append(Client(model, client_dls[i], test_dl, optimizer, criterion, device))
 
-client_dls, client_models, client_optimizers = iid_clients(train_ds, n)
+for i in range(n):
+	clients[i].train_model()
 
-Server_main = Server(model, supply_clients, demand_clients, leakage, punishment, transmission_criterion)
+leakage = None
+punishment = None
+
+Server_main = Server(model, clients, leakage, punishment, transmission_criterion)
 
 rounds = 5
 
 for i in range(rounds):
+	print(f"Round {i}:")
+	print("-------------------------")
 	Server_main.run_demand_auction()
+	for i in range(n):
+		clients[i].train_model()
 
+	print("-------------------------")
+
+Server_main.print_final_pay()
 
 Server_main.visualize_values(rounds)
 

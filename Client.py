@@ -1,61 +1,58 @@
+import string
+import random
+import torch
+
+from sklearn.metrics import accuracy_score
+
 class Client:
 	client_num = 0
 	clients = []
+	bids = []
 
-	def __init__(self, model):
+	def __init__(self, model, train_dl, test_dl, optimizer, criterion, device):
 		# n-people and their bids
 		#['A', 'B', .... 'Z'] -> list of alphabets for visualization purpose
 		self.person = list(string.ascii_uppercase)[Client.client_num]
 		Client.clients.append(self)
 		Client.client_num+=1
-		# self.bid = random.random()
-		# self.prob = 1 + np.exp(self.bid)
+
 		self.receivers = []
 		self.model = model
+		self.device = device
+		self.optimizer = optimizer
+		self.test_dl = test_dl
+		self.train_dl = train_dl
+		self.criterion = criterion
 
+		self.received_models = []
+		self.evaluated_models = []
+		self.eval_acc = []
+		self.pay = 0
+		self.bid = 0
+		
 
-	def send_model():
+	def send_model(self):
 		"""
 		Send model to each client in self.receivers.
 		"""
 		for receiver in self.receivers:
 			receiver.received_models.append(self.model)
+			receiver.all_models.append(self.model)
 
+	
 
-class DemandClient(Client):
-
-	bids = []
-
-	def __init__(self, train_dl, test_dl, optimizer, criterion, initial_model, device):
-		super().__init__(initial_model)
-		self.device = device
-		# self.receivers = []
-		self.received_models = []
-		self.evaluated_models = []
-		self.eval_acc = []
-		# self.bid = bid
-		self.model = initial_model
-		# self.optimizer = Adam(self.model.parameters(), lr = lr)
-
-		
-
-	def bid():
+	def bidding(self):
 		self.bid = random.random()
-		DemandClient.bids.append(bid)
-		if len(DemandClient.bids)>len(Client.clients):
-			DemandClient.bids = [bid]
-		threshold = np.random.uniform(0.1,1)
-
-		return bid, threshold
-		# self.prob = 1 + np.exp(self.bid)
-		# self.threshold = np.random.uniform(0.1,1)
-
+		Client.bids.append(self.bid)
+		if len(Client.bids)>len(Client.clients):
+			Client.bids = [self.bid]
 
 
 	def aggregate(self):
 		"""
 		Aggregate all received models and append models to received models
 		"""
+		
 		# New Model
 		new_model = self.model
 		# Average all models
@@ -93,56 +90,54 @@ class DemandClient(Client):
 		"""
 		Evaluate all models in received_models and append to evaluated_models
 		"""
-		for i in range(len(received_models)):
-			_ , testacc = self.test(received_models[i])
-			eval_acc.append(testacc)
-			evaluated_models.append(received_models[i])
+		self.evaluated_models = []
+		self.eval_acc = []
 
-		if len(received_models) > 1:
+		# Evaluating own model
+		_ , testacc = self.test(self.model)
+		self.eval_acc.append(testacc)
+		self.evaluated_models.append(self.model)
+
+		#Evaluating received models (single)
+		for i in range(len(self.received_models)):
+			print(self.received_models[i].person)
+			_ , testacc = self.test(self.received_models[i])
+			self.eval_acc.append(testacc)
+			self.evaluated_models.append(self.received_models[i])
+
+		#Evaluating aggregate of received models
+		if len(self.received_models) > 1:
 			agg_model = self.aggregate()
 			_ , testacc = self.test(agg_model)
-			eval_acc.append(testacc)
-			evaluated_models.append(agg_model)
+			self.eval_acc.append(testacc)
+			self.evaluated_models.append(agg_model)
 
-	def pay(amount):
+	def pay_amt(self,amount):
 		"""
 		Change the amount to bid by a value
 		"""
 		self.pay += amount
 
-	# def send_models():
-
-	# 	return model
-
-	# def bid():
-
-
-
-class SupplyClient(Client):
-	def __init__(self, train_dl, test_dl, criterion, initial_model):
-		self.test_dl = test_dl
-		self.train_dl  = train_dl
-		self.criterion = criterion
-		self.receivers = []
-
-	def train():
+	def train_model(self):
 		"""
 		Train one round using data from the model
 		"""
-		client_loss, client_acc = [], []
-		for model, optimizer, train_dl in zip(client_models, client_optimizers, client_dls):
-			# model.load_state_dict(server_model.state_dict())
-			closs, cacc = train(model, train_dl, optimizer)
-			client_loss.append(closs.item())
-			client_acc.append(cacc)
-		# return client_loss, client_acc
+		self.model.to(self.device)
+		self.model.train()
+		batch_loss, batch_acc = [], []
+		for images, labels in self.train_dl:
+			images, labels = images.to(self.device), labels.to(self.device)
+			self.optimizer.zero_grad()
+			logits = self.model(images)
+			loss = self.criterion(logits, labels)
+			loss.backward()
+			self.optimizer.step()
+			batch_loss.append(loss.cpu())
+			pred = torch.argmax(logits, dim=1)
+			batch_acc.append(accuracy_score(labels.cpu(), pred.cpu()))
+		self.model.cpu()
+		# return self.model
+		# return sum(batch_loss)/len(batch_loss), sum(batch_acc)/len(batch_acc)
 
-		return model
-
-	# def send_models():
-	# 	"""
-	# 	Send models to all clients in receivers.
-	# 	"""
-	# 	return model
 
 
