@@ -1,2 +1,2 @@
 # MultiSidedFederation
-Provides an auction design for end-to-end funding of federated learning auctions
+Contains code on federated learning auctions.
