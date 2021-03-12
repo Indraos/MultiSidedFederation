@@ -35,19 +35,22 @@ class Server:
 		y = client2.bid * (self.best_acc[(i+1)%self.n] - self.mbm_acc[(i+1)%self.n])
 
 		if x == y:
+			# print(f"{client1.person} and {client2.person} win")
 			#both get global best model
-			client1.model = self.global_best_model
-			client2.model = self.global_best_model
+			client1.model.load_state_dict(self.global_best_model.state_dict())
+			client2.model.load_state_dict(self.global_best_model.state_dict())
 
 		elif x > y:
+			# print(f"{client1.person} wins")
 			#client 1 wins
-			client1.model = self.global_best_model
+			client1.model.load_state_dict(self.global_best_model.state_dict())
 			client2.pay_amt(client1.pay)
 			client1.pay_amt(-1 * client1.pay)
 
 		else:
 			#client 2 wins
-			client2.model = self.global_best_model
+			# print(f"{client2.person} wins")
+			client2.model.load_state_dict(self.global_best_model.state_dict())
 			client1.pay_amt(client2.pay)
 			client2.pay_amt(-1 * client2.pay)
 
@@ -57,7 +60,7 @@ class Server:
 		for i in range(n):
 			threshold = np.random.uniform(0.1,1)
 			probMat[i] = probs > threshold
-		# print(threshold)
+		# print(f"Threshold = {threshold}")
 
 		return probMat
 
@@ -72,17 +75,35 @@ class Server:
 		for client in self.clients:
 			client.bidding()
 
-		for client in self.clients:
-			probMat = self.probRecvModel(self.transmission_criterion(client.bids))
-			for i in range(len(probMat)):
-				for j in range(len(probMat)):
-					if(probMat[j][i] == 1 and i!=j):
-						client.receiver.append(client.clients[j])
+		# print(f"Client bids = {client.bids}")
+		# print(f"Probs = {1-np.exp(-1 * [1,1,2])}")
+
+		# print(f"Probs = {self.transmission_criterion(client.bids)}")
+
+		probMat = self.probRecvModel(self.transmission_criterion(client.bids))
+		probMat = torch.transpose(probMat, 0, 1)
+		# print(probMat)
+
+		for i,client in enumerate(self.clients):
+			# print(self.transmission_criterion(client.bids))
+			
+			prob=probMat[i]
+			for j in range(len(probMat)):
+				if(prob[j] == 1 and i!=j):
+					# print(f"({i},{j})")
+					client.receivers.append(client.clients[j])
+					# print(client.person + ' receiving ' + client.clients[j].person)
+
+
+		# print(probMat)
 
 		for sender in self.clients:
 			sender.send_model()
 
+
 		for client in self.clients:
+			print(f"\nClient {client.person}: ")
+			print("******")
 			client.evaluate()
 
 			#Getting (median score, median best models(mbm)) and (best score, best model)
@@ -130,8 +151,8 @@ class Server:
 		"""
 		epoch_list = list(range(0,epochs+1))
 		for client in self.clients:
-			print(client.eval_acc)
-			plt.plot(epoch_list, client.eval_acc, label=f'Client {client.person} - {client.bid}')
+			print(client.val_acc)
+			plt.plot(epoch_list, client.val_acc, label=f'Client {client.person} - {client.bid}')
 
 		plt.ylabel('Accuracy Value')
 		plt.xlabel('Federated Rounds')

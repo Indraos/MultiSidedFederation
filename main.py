@@ -73,8 +73,8 @@ class MnistNet(nn.Module):
 
 
 epochs = 10
-model = MnistNet()
-optimizer = Adam(model.parameters(), lr = 0.001)
+# model = MnistNet()
+# optimizer = Adam(model.parameters(), lr = 0.001)
 criterion = nn.CrossEntropyLoss()
 device = 'cuda' if torch.cuda.is_available else 'cpu'
 
@@ -108,8 +108,9 @@ def iid_clients(train_ds, n):
 	return client_dls
 
 
-#Transmission function which takes bid and threshold as argument
+#Transmission function which takes bid as argument
 def transmission_criterion(bid):
+	bid = torch.FloatTensor(bid)
 	return 1-np.exp(-1 * bid)
 
 #n -> number of clients
@@ -119,26 +120,40 @@ clients = []
 client_dls = iid_clients(train_ds, n)
 
 for i in range(n):
-	clients.append(Client(model, client_dls[i], test_dl, optimizer, criterion, device))
+	clients.append(Client(MnistNet(), client_dls[i], test_dl, criterion, device))
 
-for i in range(n):
-	clients[i].train_model()
+x = []
+
+for i,client in enumerate(clients):
+	client.set_model(client.train_model())
+	_,testacc = client.test(client.model)
+	client.val_acc.append(testacc)
+
 
 leakage = None
 punishment = None
 
-Server_main = Server(model, clients, leakage, punishment, transmission_criterion)
+Server_main = Server(MnistNet(), clients, leakage, punishment, transmission_criterion)
 
 rounds = 5
 
 for i in range(rounds):
-	print(f"Round {i}:")
+	print(f"\nRound {i+1}:")
 	print("-------------------------")
 	Server_main.run_demand_auction()
+
+	print("\n=========================")
+	print("Training phase begins with new weights")
+	print("=========================")
 	for i in range(n):
-		clients[i].train_model()
+		clients[i].model = clients[i].train_model()
+		_,testacc = clients[i].test(clients[i].model)
+		clients[i].val_acc.append(testacc)
+		# print(f"eval_acc = {clients[i].val_acc}")
 
 	print("-------------------------")
+
+
 
 Server_main.print_final_pay()
 

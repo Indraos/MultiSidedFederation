@@ -1,6 +1,7 @@
 import string
 import random
 import torch
+from torch.optim import Adam, SGD
 
 from sklearn.metrics import accuracy_score
 
@@ -9,7 +10,7 @@ class Client:
 	clients = []
 	bids = []
 
-	def __init__(self, model, train_dl, test_dl, optimizer, criterion, device):
+	def __init__(self, model, train_dl, test_dl, criterion, device):
 		# n-people and their bids
 		#['A', 'B', .... 'Z'] -> list of alphabets for visualization purpose
 		self.person = list(string.ascii_uppercase)[Client.client_num]
@@ -19,7 +20,6 @@ class Client:
 		self.receivers = []
 		self.model = model
 		self.device = device
-		self.optimizer = optimizer
 		self.test_dl = test_dl
 		self.train_dl = train_dl
 		self.criterion = criterion
@@ -29,30 +29,41 @@ class Client:
 		self.eval_acc = []
 		self.pay = 0
 		self.bid = 0
+		self.val_acc = []
 		
 
 	def send_model(self):
 		"""
 		Send model to each client in self.receivers.
 		"""
+
 		for receiver in self.receivers:
 			receiver.received_models.append(self.model)
-			receiver.all_models.append(self.model)
+			# receiver.all_models.append(self.model)
+
+		self.received_models = []
+		self.receivers = []
+
+	def set_model(self, model):
+		self.model = model
 
 	
 
 	def bidding(self):
 		self.bid = random.random()
+		print(f"Bid = {self.bid}")
 		Client.bids.append(self.bid)
 		if len(Client.bids)>len(Client.clients):
 			Client.bids = [self.bid]
+
+		# print(Client.bids)
 
 
 	def aggregate(self):
 		"""
 		Aggregate all received models and append models to received models
 		"""
-		
+
 		# New Model
 		new_model = self.model
 		# Average all models
@@ -66,7 +77,8 @@ class Client:
 
 		return new_model
 
-	def test(self, model):
+	def test(self, input_model):
+		model = input_model
 		with torch.no_grad():
 			model.to(self.device)
 			model.eval()
@@ -94,19 +106,25 @@ class Client:
 		self.eval_acc = []
 
 		# Evaluating own model
+
+		# print("Evaluating own model")
 		_ , testacc = self.test(self.model)
 		self.eval_acc.append(testacc)
 		self.evaluated_models.append(self.model)
 
+		# print(f"Len received_models = {len(self.received_models)}")
+
 		#Evaluating received models (single)
 		for i in range(len(self.received_models)):
-			print(self.received_models[i].person)
+			# print("Evaluating " + self.received_models[i].person + "...")
 			_ , testacc = self.test(self.received_models[i])
 			self.eval_acc.append(testacc)
 			self.evaluated_models.append(self.received_models[i])
 
 		#Evaluating aggregate of received models
+
 		if len(self.received_models) > 1:
+			print("Aggregated model")
 			agg_model = self.aggregate()
 			_ , testacc = self.test(agg_model)
 			self.eval_acc.append(testacc)
@@ -122,20 +140,29 @@ class Client:
 		"""
 		Train one round using data from the model
 		"""
-		self.model.to(self.device)
-		self.model.train()
+		model = self.model
+		print(f"Training {self.person}...")
+		model.to(self.device)
+		model.train()
+		optimizer = Adam(model.parameters(), lr = 0.001)
 		batch_loss, batch_acc = [], []
 		for images, labels in self.train_dl:
 			images, labels = images.to(self.device), labels.to(self.device)
-			self.optimizer.zero_grad()
-			logits = self.model(images)
+			optimizer.zero_grad()
+			logits = model(images)
 			loss = self.criterion(logits, labels)
 			loss.backward()
-			self.optimizer.step()
+			optimizer.step()
 			batch_loss.append(loss.cpu())
 			pred = torch.argmax(logits, dim=1)
 			batch_acc.append(accuracy_score(labels.cpu(), pred.cpu()))
-		self.model.cpu()
+
+		trainl = sum(batch_loss)/len(batch_loss)
+		trainacc = round(sum(batch_acc)/len(batch_acc),4)
+		print(f'\nAverage Train Loss: {trainl:.4f}, Train Accuracy: {trainacc:.4f}\n')
+		# model.cpu()
+
+		return model
 		# return self.model
 		# return sum(batch_loss)/len(batch_loss), sum(batch_acc)/len(batch_acc)
 
