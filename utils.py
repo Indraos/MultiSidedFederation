@@ -25,7 +25,9 @@ def num_pieces(num, length, lower, upper):
 
 
 def iid_clients(train_ds, n):
-    split = utils.num_pieces(len(train_ds), n, 1000, 10000)
+    split = utils.num_pieces(
+        len(train_ds), n, 1000, 10000
+    )  # Needs to be fraction of dataset size
     print("Dataset split: ", split)
     client_ds = random_split(train_ds, split)
 

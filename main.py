@@ -32,7 +32,7 @@ mnist = False
 fashion_mnist = False
 cifar = False
 
-# Dataset 1: MNIST & Fashion MNIST
+# Experiments 1: MNIST & Fashion MNIST
 
 n = 3
 rounds = 5
@@ -64,6 +64,7 @@ if mnist:
     transform = tt.Compose([tt.ToTensor(), tt.Normalize((0.1307,), (0.3081,))])
     train_ds = MNIST(root=".", train=True, download=True, transform=transform)
     test_ds = MNIST(root=".", train=False, download=True, transform=transform)
+	optimizer = Adam(model.parameters(), lr=0.001)
 
 if fashion_mnist:
     transform = tt.Compose([tt.ToTensor(), tt.Normalize((0.2860,), (0.3530,))])
@@ -79,6 +80,12 @@ if fashion_mnist:
 client_dls = utils.iid_clients(train_ds, n)
 clients = [Client(MnistNet(), client_dls[i], test_dl, criterion, device) for i in range(n)]
 server = Server(MnistNet(), clients, utils.exponential_cutoff)
+
+
+
+# Experiments 2: CIFAR
+
+
 
 for i in range(rounds):
 	for i in range(n):

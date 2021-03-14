@@ -1,7 +1,7 @@
 import string
 import random
 import torch
-from torch.optim import Adam, SGD
+from torch.optim import Adam
 from sklearn.metrics import accuracy_score
 
 
@@ -13,7 +13,6 @@ class Client:
     def __init__(self, architecture, train_dl, test_dl, criterion, device, bid):
         # n-people and their bids
         # ['A', 'B', .... 'Z'] -> list of alphabets for visualization purpose
-        self.person = list(string.ascii_uppercase)[Client.client_num]
         Client.clients.append(self)
 		Client.bids.append(bid)
         Client.client_num += 1
@@ -21,24 +20,29 @@ class Client:
         self.receivers = []
         self.architecture = architecture
         self.device = device
+		self.optimizer = optimizer
+		self.criterion = criterion
         self.test_dl = test_dl
         self.train_dl = train_dl
-        self.criterion = criterion
+        
 
 		self.pay = 0
         self.bid = 0
 
         self.received_models = []
         self.evaluated_models = []
-        self.eval_acc = []
+        self.peers_acc = []
 		self.median_score = 0
 		self.median_aggregated_score = 0
 		self.score = 0
 		self.aggregated_score = 0
 
+	def __str__(self):
+		return list(string.ascii_uppercase)[Client.client_num]
+
     def send_model(self):
         """
-        Send model to each client in self.receivers.
+        Send model to each client in self.receivers and empty own received models.
         """
         for receiver in self.receivers:
             receiver.received_models.append(self.architecture)
@@ -125,7 +129,6 @@ class Client:
         print(f"Training client {self.person}...")
         model.to(self.device)
         model.train()
-        optimizer = Adam(model.parameters(), lr=0.001)
         
 		batch_loss, batch_acc = [], []
         for features, labels in self.train_dl:
