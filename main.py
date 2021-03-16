@@ -1,5 +1,7 @@
 from Client import *
 from Server import *
+
+
 import utils
 
 import numpy as np
@@ -13,7 +15,7 @@ from torch.optim import Adam, SGD
 import torchvision
 import torchvision.transforms as tt
 import torchvision.models as models
-from torchvision.datasets import MNIST, FashionMNIST, ImageFolder
+from torchvision.datasets import MNIST, FashionMNIST, ImageFolder, CIFAR10
 from torchvision.utils import make_grid
 from torch.utils.data import random_split, DataLoader, Subset
 
@@ -29,14 +31,16 @@ import string
 
 
 mnist = False
-fashion_mnist = False
+fashion_mnist = True
 cifar = False
-
-# Experiments 1: MNIST & Fashion MNIST
 
 n = 3
 rounds = 5
 epochs = 10
+batch_size = 100
+criterion = nn.CrossEntropyLoss()
+device = "cuda" if torch.cuda.is_available else "cpu"
+
 
 class MnistNet(nn.Module):
     def __init__(self):
@@ -57,48 +61,67 @@ class MnistNet(nn.Module):
         x = self.fc2(x)
         return x
 
-criterion = nn.CrossEntropyLoss()
-device = "cuda" if torch.cuda.is_available else "cpu"
+
+class CifarNet(nn.Module):
+    def __init__(self):
+        super(CifarNet, self).__init__()
+        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.fc1 = nn.Linear(16 * 5 * 5, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
+
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 16 * 5 * 5)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
 
 if mnist:
     transform = tt.Compose([tt.ToTensor(), tt.Normalize((0.1307,), (0.3081,))])
     train_ds = MNIST(root=".", train=True, download=True, transform=transform)
     test_ds = MNIST(root=".", train=False, download=True, transform=transform)
-	optimizer = Adam(model.parameters(), lr=0.001)
 
 if fashion_mnist:
     transform = tt.Compose([tt.ToTensor(), tt.Normalize((0.2860,), (0.3530,))])
     train_ds = FashionMNIST(root=".", train=True, download=True, transform=transform)
     test_ds = FashionMNIST(root=".", train=False, download=True, transform=transform)
-    batch_size = 100
-    train_dl = DataLoader(
-        train_ds, batch_size, shuffle=True, num_workers=4, pin_memory=True
+
+if cifar:
+    transform = tt.Compose(
+        [tt.ToTensor(), tt.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
-    test_dl = DataLoader(test_ds, batch_size, num_workers=4, pin_memory=True)
+
+    train_ds = CIFAR10(root=".", train=True, download=True, transform=transform)
+    test_ds = CIFAR10(root=".", train=False, download=True, transform=transform)
 
 
-client_dls = utils.iid_clients(train_ds, n)
-clients = [Client(MnistNet(), client_dls[i], test_dl, criterion, device) for i in range(n)]
-server = Server(MnistNet(), clients, utils.exponential_cutoff)
+train_dl = DataLoader(train_ds, batch_size, shuffle=True, num_workers=4)
+test_dl = DataLoader(test_ds, batch_size, shuffle=False, num_workers=4)
 
+if mnist or fashion_mnist:
+    client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
+    clients = [
+        Client(MnistNet(), client_dls[i], test_dl, criterion, device, random.random())
+        for i in range(n)
+    ]
+    server = Server(MnistNet(), clients, utils.exponential_cutoff)
 
+elif cifar:
+    client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
+    clients = [
+        Client(CifarNet(), client_dls[i], test_dl, criterion, device, random.random())
+        for i in range(n)
+    ]
+    server = Server(CifarNet(), clients, utils.exponential_cutoff)
 
-# Experiments 2: CIFAR
-
-
-
-for i in range(rounds):
-	for i in range(n):
-        clients[i].model = clients[i].train_model()
-        _, testacc = clients[i].test(clients[i].model)
-        clients[i].val_acc.append(testacc)
-    print(f"\nRound {i+1}:")
-    print("-------------------------")
+for _ in range(rounds):
     server.run_demand_auction()
 
-for i, client in enumerate(clients):
-    client.train_model()
-    _, testacc = client.test(client.model)
-    client.val_acc.append(testacc)
-server.visualize_values(rounds)
-server.visualize_utilities(rounds)
+server.visualize_values(rounds, "values.png")
+server.visualize_utilities(rounds, "utilities.png")

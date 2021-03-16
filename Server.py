@@ -10,49 +10,39 @@ class Server:
         deviation_pay,
         transmission_criterion,
     ):
-        """Constructor
-
-        Args:
-            clients ([Client]): Clients participating
-            deviation_pay (Function): function mapping deviation to monetary deviation_pay
-            transmission_criterion (Function): Function determining local transmission
-        """
         self.clients = clients
         self.deviation_pay = deviation_pay
         self.transmission_criterion = transmission_criterion
 
-        self.mbm_acc = []
-        self.mbm = []
-        self.local_best_models = []
-        self.best_model_acc = []
-        self.best_model = None
+        self.best_accuracy = 0
 
     @property
     def client_num(self):
         return len(self.clients)
+
+    @property
+    def rounds(self):
+        return len(self.clients[0].median_accuracy)
 
     def client_pairs(self, clients):
         return zip(
             range(self.client_num), np.random.permutation(list(range(self.client_num)))
         )
 
-    def winner(self, client_pair, i):
-        client1, client2 = client_pair
-
-        value = client.bid * (self.best_model_acc - client.median_acc)
-        reserve_price = next_client.bid * (self.best_model_acc - next_client.median_acc)
-
+    def winner(self, client, next_client):
+        value = client.bid * (self.best_accuracy - client.median_accuracy)
+        reserve_price = next_client.bid * (
+            self.best_accuracy - next_client.median_accuracy
+        )
         if value > reserve_price:
             client1.model.load_state_dict(self.best_model.state_dict())
-            client2.pay_amt(reserve_price)
+            client2.pay += reserve_price
 
-    def probRecvModel(self, probs):
-        n = len(probs)
-        probMat = torch.zeros(n, n)
-        for i in range(n):
-            threshold = np.random.uniform(0.1, 1)
-            probMat[i] = probs > threshold
-        return probMat
+    def set_receivers(self):
+        for sender in self.clients:
+            for receiver in self.clients:
+                if self.transmission_criterion(receiver.bid):
+                    sender.receivers.append(receiver)
 
     def run_demand_auction(self):
         self.mbm_acc = []
@@ -61,43 +51,30 @@ class Server:
         self.local_best_models = []
         self.indiv_acc = []
 
-        for client in self.clients:
-            client.bid()
-
-        # print(f"Client bids = {client.bids}")
-        # print(f"Probs = {1-np.exp(-1 * [1,1,2])}")
-
-        # print(f"Probs = {self.transmission_criterion(client.bids)}")
-
-        probMat = self.probRecvModel(self.transmission_criterion(client.bids))
-        probMat = torch.transpose(probMat, 0, 1)
-        # print(probMat)
-
-        for i, client in enumerate(self.clients):
-            # print(self.transmission_criterion(client.bids))
-
-            prob = probMat[i]
-            for j in range(len(probMat)):
-                if prob[j] == 1 and i != j:
-                    # print(f"({i},{j})")
-                    client.receivers.append(client.clients[j])
-                    # print(client.person + ' receiving ' + client.clients[j].person)
-
-        # print(probMat)
-
-        for sender in self.clients:
-            sender.send_model()
-
-        for client in self.clients:
-            print(f"\nClient {client.person}: ")
-            print("******")
-            client.evaluate()
-
-            # Getting (median score, median best models(mbm)) and (best score, best model)
-            median_score = np.median(client.eval_acc)
-            self.mbm_acc.append(median_score)
-            best_score = np.max(client.eval_acc)
-            self.best_model_acc.append(best_score)
+        self.set_receivers()
+        for sender in self.clients.values():
+            self.to_send.append(self.model)
+            client.send()
+        for key, receiver in self.clients().items():
+            self.evaluate(key)
+        for client in self.clients():
+            client.median_score = np.median(np.array(client.scores_single.values()))
+            for identity, evaluator in self.clients().items():
+                evaluator.pay += self.deviation_pay(
+                    client.evaluator_scores[identity] - client.median_score
+                )
+        for client in self.clients():
+            client.aggregate()
+            client.to_send(self.aggregated_model)
+            client.send()
+        for key, receiver in self.clients().items():
+            self.evaluate(key)
+        for client in self.clients():
+            client.median_score = np.median(np.array(client.scores_single.values()))
+            for identity, evaluator in self.clients().items():
+                evaluator.pay += self.deviation_pay(
+                    client.evaluator_scores[identity] - client.median_score
+                )
 
             for acc, model in zip(client.eval_acc, client.evaluated_models):
                 if acc == median_score:
@@ -111,9 +88,6 @@ class Server:
 
             indiv_score = client.eval_acc[0]
             client.indiv_acc = indiv_score
-
-            amount += self.deviation_pay(self.indiv_score - self.median_score)
-            amount += self.deviation_pay(self.best_score - self.median_score)
             client.pay_amt(amount)
         self.best_model = self.local_best_models[
             self.best_model_acc.index(max(self.best_model_acc))
@@ -122,40 +96,25 @@ class Server:
         for i, client_pair in enumerate(self.client_pairs()):
             self.winner(client_pair, i)
 
-    def visualize_values(self):
+    def plot(self, what, filename):
         """Testing error for all Demand Clients."""
         rounds = list(range(len(self.val_acc)))
+        assert what in ["values", "utilities"], "only support utilities and values."
         for client in self.clients:
-            plt.plot(
-                epoch_list,
-                client.val_acc,
-                label=f"Client {client.person} - {client.bid}",
-            )
-
-        plt.ylabel("Accuracy Value")
+            if what == "values":
+                y = client.median_values
+            if what == "utilities":
+                y = client.median_values * client.bid - client.pay
+        plt.plot(
+            rounds,
+            y,
+            label=f"Client {client.person} - {client.bid}",
+        )
+        plt.ylabel(f"{what} Value")
         plt.xlabel("Federated Rounds")
-        plt.title("Client Models Accuracy", fontsize=18)
+        plt.title(f"Client Models {what}", fontsize=18)
         plt.grid(True)
         plt.legend(
             title="Model - Bid Value", bbox_to_anchor=(1.05, 1), loc="upper left"
         )
-        plt.show()
-
-    def visualize_utilities():
-        """Objective for all Demand Clients."""
-        rounds = list(range(len(self.val_acc)))
-        for client in self.clients:
-            plt.plot(
-                rounds,
-                client.val_acc * client.bid - client.pay,
-                label=f"Client {client.person} - {client.bid}",
-            )
-
-        plt.ylabel("Objective Value")
-        plt.xlabel("Federated Rounds")
-        plt.title("Client Objective", fontsize=18)
-        plt.grid(True)
-        plt.legend(
-            title="Model - Bid Value", bbox_to_anchor=(1.05, 1), loc="upper left"
-        )
-        plt.show()
+        plt.save(filename)

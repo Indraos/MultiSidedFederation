@@ -8,52 +8,47 @@ from sklearn.metrics import accuracy_score
 class Client:
     client_num = 0  # index for naming purposes
     clients = []
-	bids = []
+    bids = []
 
-    def __init__(self, architecture, train_dl, test_dl, criterion, device, bid):
-        # n-people and their bids
-        # ['A', 'B', .... 'Z'] -> list of alphabets for visualization purpose
+    def __init__(self, architecture, train_dl, test_dl, criterion, device, optimizer, bid):
         Client.clients.append(self)
-		Client.bids.append(bid)
+        self.client_num = Client.client_num
+        Client.bids.append(bid)
         Client.client_num += 1
 
-        self.receivers = []
         self.architecture = architecture
-        self.device = device
-		self.optimizer = optimizer
-		self.criterion = criterion
-        self.test_dl = test_dl
         self.train_dl = train_dl
-        
+        self.test_dl = test_dl
+        self.criterion = criterion
+        self.device = device
+        self.optimizer = optimizer
+        self.bid = bid
 
+        self.receivers = []
 		self.pay = 0
-        self.bid = 0
 
-        self.received_models = []
-        self.evaluated_models = []
-        self.peers_acc = []
-		self.median_score = 0
-		self.median_aggregated_score = 0
-		self.score = 0
-		self.aggregated_score = 0
+        self.to_send = []
+        self.to_evaluate = {}
+        self.evaluations_single = {}
+        self.evaluations_aggregated = {}
+        self.median_accuracy = 0
 
 	def __str__(self):
-		return list(string.ascii_uppercase)[Client.client_num]
+		return list(string.ascii_uppercase)[self.client_num]
 
-    def send_model(self):
+    def send(self,aggregate,identity):
         """
         Send model to each client in self.receivers and empty own received models.
         """
         for receiver in self.receivers:
-            receiver.received_models.append(self.architecture)
-        self.received_models = []
-        self.receivers = []
+            receiver.to_evaluate[(self.client_num, aggregate)].extend(to_send)
+        self.to_send = []
 
-    def aggregate_and_send(self):
+    def aggregate(self):
         """
         Aggregate all received models and append models to received models
         """
-        # Average all models
+        new_model = self.architecture
         new_state_dict = {k: 0 for k in new_model.state_dict()}
         for model in self.received_models:
             s_dict = model.state_dict()
@@ -62,12 +57,10 @@ class Client:
         new_state_dict = {
             k: v / len(self.received_models) for k, v in new_state_dict.items()
         }
-        new_model = self.architecture
         new_model.load_state_dict(new_state_dict)
         return new_model
 
-    def test(self, input_model):	
-        model = input_model
+    def test(self, model):	
         with torch.no_grad():
             model.to(self.device)
             model.eval()
@@ -84,47 +77,18 @@ class Client:
             model.cpu()
             testl = sum(batch_loss) / len(batch_loss)
             testacc = round(sum(batch_acc) / len(batch_acc), 4)
-            print(f"\nAverage Val Loss: {testl:.4f}, Val Accuracy: {testacc:.4f}\n")
             return testl, testacc
 
-    def evaluate(self):
-        """
-        Evaluate all models in received_models and append to evaluated_models
-        """
-        self.evaluated_models = []
-        self.eval_acc = []
+    def evaluate(self, identity):
+        for (source, aggregate), model in self.to_evaluate.iteritems():
+            _, testacc = self.test(model)
+            if aggregate:
+                Client.clients[source].evaluations_single[identity] = test_acc
+            else:
+                Client.clients[source].evaluations_aggregated[identity] = test_acc
+        self.to_evaluate = {}
 
-        # Evaluating own model
-        _, testacc = self.test(self.architecture)
-        self.eval_acc.append(testacc)
-        self.evaluated_models.append(self.architecture)
-
-        # Evaluating received models (single)
-        for i in range(len(self.received_models)):
-            # print("Evaluating " + self.received_models[i].person + "...")
-            _, testacc = self.test(self.received_models[i])
-            self.eval_acc.append(testacc)
-            self.evaluated_models.append(self.received_models[i])
-
-        # Evaluating aggregate of received models
-
-        if len(self.received_models) > 1:
-            print("Aggregated model")
-            agg_model = self.aggregate()
-            _, testacc = self.test(agg_model)
-            self.eval_acc.append(testacc)
-            self.evaluated_models.append(agg_model)
-
-    def pay_amt(self, amount):
-        """
-        Change the amount to bid by a value
-        """
-        self.pay += amount
-
-    def train_model(self):
-        """
-        Train one round using newly arrived data.
-        """
+    def train(self):
         model = self.architecture
         print(f"Training client {self.person}...")
         model.to(self.device)
