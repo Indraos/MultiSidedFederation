@@ -1,7 +1,5 @@
 import string
-import random
 import torch
-from torch.optim import Adam
 from sklearn.metrics import accuracy_score
 
 

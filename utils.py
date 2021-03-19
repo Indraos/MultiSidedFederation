@@ -56,15 +56,3 @@ def exponential_cutoff(bid):
     """
     bid = torch.FloatTensor(bid)
     return 1 - np.exp(-1 * bid)
-
-def exponential_cutoff(bid):
-    """Likelihood of receiving each model for evaluation given bid
-
-    Args:
-        bid (float): bid of an agent
-
-    Returns:
-        float: likelihood of receiving a model
-    """
-    bid = torch.FloatTensor(bid)
-    return 1 - np.exp(-1 * bid)

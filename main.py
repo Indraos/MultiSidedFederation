@@ -1,34 +1,17 @@
-from Client import *
-from Server import *
-
-
+from Client import Client
+from Server import Server
 import utils
-
-import numpy as np
-import matplotlib.pyplot as plt
-import copy
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.optim import Adam, SGD
-import torchvision
+from torch.optim import Adam
 import torchvision.transforms as tt
-import torchvision.models as models
-from torchvision.datasets import MNIST, FashionMNIST, ImageFolder, CIFAR10
-from torchvision.utils import make_grid
-from torch.utils.data import random_split, DataLoader, Subset
+from torchvision.datasets import MNIST, FashionMNIST, CIFAR10
+from torch.utils.data import DataLoader
+import numpy as np
 
-from sklearn.metrics import accuracy_score
-
-import os
-import time
-import pickle
-import PIL
-
-import random
-import string
-
+# TODO Inclide Adam
 
 mnist = False
 fashion_mnist = True
@@ -107,7 +90,14 @@ test_dl = DataLoader(test_ds, batch_size, shuffle=False, num_workers=4)
 if mnist or fashion_mnist:
     client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
     clients = [
-        Client(MnistNet(), client_dls[i], test_dl, criterion, device, random.random())
+        Client(
+            MnistNet(),
+            client_dls[i],
+            test_dl,
+            criterion,
+            device,
+            utils.transmission_criterion,
+        )
         for i in range(n)
     ]
     server = Server(MnistNet(), clients, utils.exponential_cutoff)
@@ -115,7 +105,14 @@ if mnist or fashion_mnist:
 elif cifar:
     client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
     clients = [
-        Client(CifarNet(), client_dls[i], test_dl, criterion, device, random.random())
+        Client(
+            CifarNet(),
+            client_dls[i],
+            test_dl,
+            criterion,
+            device,
+            utils.transmission_criterion,
+        )
         for i in range(n)
     ]
     server = Server(CifarNet(), clients, utils.exponential_cutoff)
