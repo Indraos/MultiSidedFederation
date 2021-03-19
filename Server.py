@@ -1,3 +1,4 @@
+from client import Client
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -5,7 +6,7 @@ import matplotlib.pyplot as plt
 class Server:
     def __init__(
         self,
-        clients,
+        clients: [Client],
         deviation_pay,
         transmission_criterion,
     ):
@@ -21,21 +22,23 @@ class Server:
 
     @property
     def rounds(self):
-        return len(self.clients[0].median_accuracy)
+        assert len(self.pay_history[0]) == len(self.allocation_history[0])
+        return len(self.pay_history[0])
 
     def client_pairs(self, clients):
-        return zip(
-            range(self.client_num), np.random.permutation(list(range(self.client_num)))
-        )
+        return
 
-    def winner(self, client, next_client):
-        value = client.bid * (self.best_accuracy - client.median_accuracy)
-        reserve_price = next_client.bid * (
-            self.best_accuracy - next_client.median_accuracy
-        )
-        if value > reserve_price:
-            client1.model.load_state_dict(self.best_model.state_dict())
-            client2.pay += reserve_price
+    def circuit_auction(self, client, next_client):
+        for client, next_client in zip(
+            range(self.client_num), np.random.permutation(list(range(self.client_num)))
+        ):
+            value = client.bid * (self.best_accuracy - client.median_accuracy)
+            reserve_price = next_client.bid * (
+                self.best_accuracy - next_client.median_accuracy
+            )
+            if value > reserve_price:
+                client1.model.load_state_dict(self.best_model.state_dict())
+                client2.pay += reserve_price
 
     def set_receivers(self):
         for sender in self.clients:
@@ -43,57 +46,47 @@ class Server:
                 if self.transmission_criterion(receiver.bid):
                     sender.receivers.append(receiver)
 
-    def run_demand_auction(self):
-        self.mbm_acc = []
-        self.mbm = []
-        self.best_model_acc = []
-        self.local_best_models = []
-        self.indiv_acc = []
-
-        self.set_receivers()
-        for sender in self.clients.values():
-            self.to_send.append(self.model)
-            client.send()
-        for key, receiver in self.clients().items():
-            self.evaluate(key)
-        for client in self.clients():
-            client.median_score = np.median(np.array(client.scores_single.values()))
-            for identity, evaluator in self.clients().items():
-                evaluator.pay += self.deviation_pay(
-                    client.evaluator_scores[identity] - client.median_score
+    def order_payment(self):
+        for client in self.clients:
+            client.median = np.median(evaluations.items())
+            for evaluator in client.evaluations.keys():
+                evaluator.deviations.append(
+                    client.evaluations[evaluator] - client.median
                 )
+
+    def payment(self):
+        for client in self.clients:
+            client.pay = self.deviation_pay(evaluators.deviations).sum()
+
+    def fed_eval(self):
+        for receiver in self.clients():
+            receiver.evaluate()
+        self.order_payments()
+        self.pay()
+
+    def best_model(self):
+        best_acc = {client: client.best_acc for client in self.clients}
+        best_model_owner = max(best_acc, key=best_acc.get)
+        self.best_acc = best_model_owner.best_acc
+        self.best_model = best_model_owner.architecture
+
+    def run_demand_auction(self, rounds):
+        self.set_receivers()
+        for sender in self.clients:
+            self.to_send.append(self.model)
+            sender.send()
+        self.fed_eval()
         for client in self.clients():
             client.aggregate()
             client.to_send(self.aggregated_model)
             client.send()
-        for key, receiver in self.clients().items():
-            self.evaluate(key)
-        for client in self.clients():
-            client.median_score = np.median(np.array(client.scores_single.values()))
-            for identity, evaluator in self.clients().items():
-                evaluator.pay += self.deviation_pay(
-                    client.evaluator_scores[identity] - client.median_score
-                )
-
-            for acc, model in zip(client.eval_acc, client.evaluated_models):
-                if acc == median_score:
-                    self.mbm.append(model)
-                    break
-
-            for acc, model in zip(client.eval_acc, client.evaluated_models):
-                if acc == best_score:
-                    self.local_best_models.append(model)
-                    break
-
-            indiv_score = client.eval_acc[0]
-            client.indiv_acc = indiv_score
-            client.pay_amt(amount)
-        self.best_model = self.local_best_models[
-            self.best_model_acc.index(max(self.best_model_acc))
-        ]
-
-        for i, client_pair in enumerate(self.client_pairs()):
-            self.winner(client_pair, i)
+        self.fed_eval()
+        self.best_model()
+        self.circuit_auction(client_pair, i)
+        for client in self.clients:
+            client.payment_history.append(client.pay)
+            client.allocation_history.append(client.allocation)
+            client.pay = 0
 
     def plot(self, what, filename):
         """Testing error for all Demand Clients."""

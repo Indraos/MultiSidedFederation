@@ -1,5 +1,5 @@
-from Client import Client
-from Server import Server
+from client import Client
+from server import Server
 import utils
 
 import torch
@@ -10,8 +10,6 @@ import torchvision.transforms as tt
 from torchvision.datasets import MNIST, FashionMNIST, CIFAR10
 from torch.utils.data import DataLoader
 import numpy as np
-
-# TODO Inclide Adam
 
 mnist = False
 fashion_mnist = True
@@ -100,7 +98,7 @@ if mnist or fashion_mnist:
         )
         for i in range(n)
     ]
-    server = Server(MnistNet(), clients, utils.exponential_cutoff)
+    server = Server(clients, np.exp, utils.exponential_cutoff)
 
 elif cifar:
     client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
@@ -111,14 +109,15 @@ elif cifar:
             test_dl,
             criterion,
             device,
+            Adam(),
             utils.transmission_criterion,
         )
         for i in range(n)
     ]
-    server = Server(CifarNet(), clients, utils.exponential_cutoff)
+    server = Server(clients, np.exp, utils.exponential_cutoff)
 
 for _ in range(rounds):
     server.run_demand_auction()
 
-server.visualize_values(rounds, "values.png")
-server.visualize_utilities(rounds, "utilities.png")
+server.plot(rounds, "values.png")
+server.plot(rounds, "utilities.png")

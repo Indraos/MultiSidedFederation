@@ -1,26 +1,28 @@
 from torch.utils.data import random_split, DataLoader
+import random
 
 
-def biased_partition(num, total, lower, upper)
+def biased_partition(num, sum, lower, upper):
     """Generating a biased integer partition
 
     Args:
         num (int): length of the integer partition
-        total (int): sum of the integer partition
+        sum (int): sum of the integer partition
         lower (int): lower bound on summands
         upper (int): upper bound on summands
 
     Returns:
         [int]: Partition
     """
-    backward_list = list(range(1, total + 1))[::-1]
+    backward_list = list(range(1, num + 1))[::-1]
     partition = []
-    for i in range(length - 1):
-        n = random.randint(lower, min(upper, num - backward_list[i]))
-        partition.append(n)
-        num -= n
-    all_list.append(num)
-    return all_list
+    for i in range(num - 1):
+        element = random.randint(lower, min(upper, sum - backward_list[i]))
+        partition.append(element)
+        sum -= n
+    partition.append(sum)
+    print(partition)
+    return partition
 
 
 def iid_clients(dataset, n, lower_lmt, upper_lmt, batch_size):
@@ -36,7 +38,7 @@ def iid_clients(dataset, n, lower_lmt, upper_lmt, batch_size):
     Returns:
         [Data]: Datasets
     """
-    partition = num_pieces(len(dataset), n, lower_lmt, upper_lmt)
+    partition = biased_partition(len(dataset), n, lower_lmt, upper_lmt)
     client_ds = random_split(dataset, partition)
     client_dls = [
         DataLoader(ds, batch_size, shuffle=True, num_workers=4, pin_memory=True)
