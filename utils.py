@@ -1,8 +1,8 @@
 from torch.utils.data import random_split, DataLoader
-import random
+import numpy as np
 
 
-def biased_partition(num, sum, lower, upper):
+def biased_partition(sum, num, lower, upper):
     """Generating a biased integer partition
 
     Args:
@@ -17,9 +17,9 @@ def biased_partition(num, sum, lower, upper):
     backward_list = list(range(1, num + 1))[::-1]
     partition = []
     for i in range(num - 1):
-        element = random.randint(lower, min(upper, sum - backward_list[i]))
+        element = np.random.randint(lower, min(upper, sum - backward_list[i]))
         partition.append(element)
-        sum -= n
+        sum -= element
     partition.append(sum)
     print(partition)
     return partition
@@ -56,5 +56,4 @@ def exponential_cutoff(bid):
     Returns:
         float: likelihood of receiving a model
     """
-    bid = torch.FloatTensor(bid)
     return 1 - np.exp(-1 * bid)

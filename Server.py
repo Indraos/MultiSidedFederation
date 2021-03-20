@@ -25,10 +25,7 @@ class Server:
         assert len(self.pay_history[0]) == len(self.allocation_history[0])
         return len(self.pay_history[0])
 
-    def client_pairs(self, clients):
-        return
-
-    def circuit_auction(self, client, next_client):
+    def circuit_auction(self):
         for client, next_client in zip(
             range(self.client_num), np.random.permutation(list(range(self.client_num)))
         ):
@@ -59,7 +56,7 @@ class Server:
             client.pay = self.deviation_pay(evaluators.deviations).sum()
 
     def fed_eval(self):
-        for receiver in self.clients():
+        for receiver in self.clients:
             receiver.evaluate()
         self.order_payments()
         self.pay()
@@ -70,13 +67,13 @@ class Server:
         self.best_acc = best_model_owner.best_acc
         self.best_model = best_model_owner.architecture
 
-    def run_demand_auction(self, rounds):
+    def run_demand_auction(self):
         self.set_receivers()
         for sender in self.clients:
-            self.to_send.append(self.model)
+            sender.to_send = sender.architecture
             sender.send()
         self.fed_eval()
-        for client in self.clients():
+        for client in self.clients:
             client.aggregate()
             client.to_send(self.aggregated_model)
             client.send()

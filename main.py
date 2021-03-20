@@ -19,6 +19,7 @@ n = 3
 rounds = 5
 epochs = 10
 batch_size = 100
+client_values = [0.4, 0.5, 0.6]
 criterion = nn.CrossEntropyLoss()
 device = "cuda" if torch.cuda.is_available else "cpu"
 
@@ -94,7 +95,8 @@ if mnist or fashion_mnist:
             test_dl,
             criterion,
             device,
-            utils.transmission_criterion,
+            utils.exponential_cutoff,
+            client_values[i],
         )
         for i in range(n)
     ]
@@ -102,6 +104,7 @@ if mnist or fashion_mnist:
 
 elif cifar:
     client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
+
     clients = [
         Client(
             CifarNet(),
@@ -111,11 +114,14 @@ elif cifar:
             device,
             Adam(),
             utils.transmission_criterion,
+            client_values[i],
         )
         for i in range(n)
     ]
     server = Server(clients, np.exp, utils.exponential_cutoff)
 
+for client in clients:
+    client.bid()
 for _ in range(rounds):
     server.run_demand_auction()
 

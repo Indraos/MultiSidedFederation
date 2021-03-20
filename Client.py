@@ -35,12 +35,12 @@ class Client:
     def allocation(self):
         return self.test(self.architecture)
 
-    def send(self, aggregate, identity):
+    def send(self):
         """
         Send model to each client in self.receivers and empty own received models.
         """
         for receiver in self.receivers:
-            receiver.to_evaluate[self] = to_send
+            receiver.to_evaluate[self] = self.to_send
         self.to_send = []
 
     def aggregate(self):
@@ -78,15 +78,21 @@ class Client:
             testacc = round(sum(batch_acc) / len(batch_acc), 4)
             return testl, testacc
 
-    def evaluate(self, identity):
-        for source, model in self.to_evaluate.iteritems():
+    def evaluate(self):
+        for source, model in self.to_evaluate.items():
             _, testacc = self.test(model)
             source.evaluations[self].append(test_acc)
             if test_acc > self.best_acc:
                 self.best_model = model
         self.to_evaluate = {}
 
-    def train(self):
+    def bid(self, deviation=None):
+        if deviation:
+            self.bid = deviation
+        else:
+            self.bid = self.value
+
+    def train(self, verbose=False):
         model = self.architecture
         print(f"Training client {self.person}...")
         model.to(self.device)
@@ -102,8 +108,8 @@ class Client:
             batch_loss.append(loss.cpu())
             pred = torch.argmax(logits, dim=1)
             batch_acc.append(accuracy_score(labels.cpu(), pred.cpu()))
-
-        train_loss = sum(batch_loss) / len(batch_loss)
-        train_acc = round(sum(batch_acc) / len(batch_acc), 4)
-        # print(f"\nAverage Train Loss: {train_loss:.4f}, Train Accuracy: {train_acc:.4f}\n")
+        if verbose:
+            train_loss = sum(batch_loss) / len(batch_loss)
+            train_acc = round(sum(batch_acc) / len(batch_acc), 4)
+            return train_loss, train_acc
         self.architecture = model
