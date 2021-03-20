@@ -17,7 +17,7 @@ cifar = False
 
 n = 3
 rounds = 5
-epochs = 10
+epochs = 2
 batch_size = 100
 client_values = [0.4, 0.5, 0.6]
 criterion = nn.CrossEntropyLoss()
@@ -123,7 +123,8 @@ elif cifar:
 for client in clients:
     client.bid()
 for _ in range(rounds):
+    print("New round")
     server.run_demand_auction()
 
-server.plot(rounds, "values.png")
-server.plot(rounds, "utilities.png")
+server.plot("values", "values.png")
+server.plot("utilities", "utilities.png")

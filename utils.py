@@ -21,7 +21,6 @@ def biased_partition(sum, num, lower, upper):
         partition.append(element)
         sum -= element
     partition.append(sum)
-    print(partition)
     return partition
 
 

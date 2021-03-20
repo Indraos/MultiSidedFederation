@@ -137,3 +137,17 @@ FashionMNIST/raw/train-labels-idx1-ubyte
 FashionMNIST/raw/train-labels-idx1-ubyte.gz
 FashionMNIST/processed/test.pt
 FashionMNIST/processed/training.pt
+MNIST/raw/train-images-idx3-ubyte.gz
+MNIST/processed/test.pt
+MNIST/processed/training.pt
+MNIST/raw/t10k-images-idx3-ubyte
+MNIST/raw/t10k-images-idx3-ubyte.gz
+MNIST/raw/t10k-labels-idx1-ubyte
+MNIST/raw/t10k-labels-idx1-ubyte.gz
+MNIST/raw/train-images-idx3-ubyte
+MNIST/raw/train-labels-idx1-ubyte
+MNIST/raw/train-labels-idx1-ubyte.gz
+.vscode/launch.json
+.vscode/settings.json
+utilities.png
+.gitignore

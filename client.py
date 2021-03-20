@@ -1,5 +1,6 @@
 import string
 import torch
+from tqdm import tqdm
 from sklearn.metrics import accuracy_score
 
 
@@ -25,8 +26,12 @@ class Client:
         self.to_send = None
         self.to_evaluate = {}
         self.median = 0
-        self.best_accuracy = 0
+        self.evaluations = {}
+        self.best_acc = 0
         self.best_model = None
+        self.deviations = []
+        self.payment_history = []
+        self.allocation_history = []
 
     def __str__(self):
         return list(string.ascii_uppercase)[self.client_num]
@@ -40,8 +45,12 @@ class Client:
         Send model to each client in self.receivers and empty own received models.
         """
         for receiver in self.receivers:
+            receiver.to_evaluate = {}
+        for receiver in self.receivers:
             receiver.to_evaluate[self] = self.to_send
-        self.to_send = []
+        print("evaluating:")
+        for receiver in self.to_evaluate.keys():
+            print(receiver)
 
     def aggregate(self):
         """
@@ -49,12 +58,12 @@ class Client:
         """
         new_model = self.architecture
         new_state_dict = {k: 0 for k in new_model.state_dict()}
-        for model in self.received_models:
+        for model in self.to_evaluate.values():
             s_dict = model.state_dict()
             for k, v in s_dict.items():
                 new_state_dict[k] += v
         new_state_dict = {
-            k: v / len(self.received_models) for k, v in new_state_dict.items()
+            k: v / len(self.to_evaluate) for k, v in new_state_dict.items()
         }
         new_model.load_state_dict(new_state_dict)
         return new_model
@@ -80,11 +89,10 @@ class Client:
 
     def evaluate(self):
         for source, model in self.to_evaluate.items():
-            _, testacc = self.test(model)
-            source.evaluations[self].append(test_acc)
+            _, test_acc = self.test(model)
+            source.evaluations[self] = test_acc
             if test_acc > self.best_acc:
                 self.best_model = model
-        self.to_evaluate = {}
 
     def bid(self, deviation=None):
         if deviation:
@@ -98,7 +106,7 @@ class Client:
         model.to(self.device)
         model.train()
         batch_loss, batch_acc = [], []
-        for features, labels in self.train_dl:
+        for features, labels in tqdm(self.train_dl):
             features, labels = features.to(self.device), labels.to(self.device)
             optimizer.zero_grad()
             logits = model(features)
