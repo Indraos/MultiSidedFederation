@@ -1,6 +1,5 @@
 import string
 import torch
-from tqdm import tqdm
 from sklearn.metrics import accuracy_score
 
 
@@ -16,7 +15,7 @@ class Client:
         self.test_dl = test_dl
         self.criterion = criterion
         self.device = device
-        self.optimizer = optimizer
+        self.optimizer = optimizer(architecture.parameters(), lr=0.1)
         self.value = value
 
         self.client_num = Client.client_count
@@ -38,7 +37,7 @@ class Client:
 
     @property
     def allocation(self):
-        return self.test(self.architecture)
+        return self.test(self.architecture)[1]
 
     def send(self):
         """
@@ -106,13 +105,13 @@ class Client:
         model.to(self.device)
         model.train()
         batch_loss, batch_acc = [], []
-        for features, labels in tqdm(self.train_dl):
+        for features, labels in self.train_dl:
             features, labels = features.to(self.device), labels.to(self.device)
-            optimizer.zero_grad()
+            self.optimizer.zero_grad()
             logits = model(features)
             loss = self.criterion(logits, labels)
             loss.backward()
-            optimizer.step()
+            self.optimizer.step()
             batch_loss.append(loss.cpu())
             pred = torch.argmax(logits, dim=1)
             batch_acc.append(accuracy_score(labels.cpu(), pred.cpu()))

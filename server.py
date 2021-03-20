@@ -31,8 +31,8 @@ class Server:
             value = client.bid * (self.best_accuracy - client.median)
             reserve_price = next_client.bid * (self.best_accuracy - next_client.median)
             if value > reserve_price:
-                client1.model.load_state_dict(self.best_model.state_dict())
-                client2.pay += reserve_price
+                client.model.load_state_dict(self.best_model.state_dict())
+                client.pay += reserve_price
 
     def set_receivers(self):
         for receiver in self.clients:
@@ -83,19 +83,25 @@ class Server:
         for client in self.clients:
             client.payment_history.append(client.pay)
             client.allocation_history.append(client.allocation)
-            client.pay = 0
 
     def plot(self, what, filename):
         """Testing error for all Demand Clients."""
-        rounds = self.rounds
-        assert what in ["values", "utilities"], "only support utilities and values."
+        assert what in [
+            "values",
+            "utilities",
+        ], "Please specify either 'values' or 'utilities'"
+        y = []
         for client in self.clients:
             if what == "values":
-                y = client.median
+                y.append(np.array(client.allocation_history))
             if what == "utilities":
-                y = client.median * client.bid - client.pay
+                y.append(
+                    np.array(client.allocation_history) * client.bid
+                    - np.array(client.payment_history)
+                )
+        y = np.vstack(y).T
         plt.plot(
-            rounds, y, label=f"Client {client} - {client.bid}",
+            list(range(self.rounds)), y, label=f"Client {client} - {client.bid}",
         )
         plt.ylabel(f"{what} Value")
         plt.xlabel("Federated Rounds")

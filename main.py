@@ -95,7 +95,7 @@ if mnist or fashion_mnist:
             test_dl,
             criterion,
             device,
-            utils.exponential_cutoff,
+            Adam,
             client_values[i],
         )
         for i in range(n)
@@ -112,8 +112,7 @@ elif cifar:
             test_dl,
             criterion,
             device,
-            Adam(),
-            utils.transmission_criterion,
+            Adam,
             client_values[i],
         )
         for i in range(n)
