@@ -48,8 +48,6 @@ class Client:
         for receiver in self.receivers:
             receiver.to_evaluate[self] = self.to_send
         print("evaluating:")
-        for receiver in self.to_evaluate.keys():
-            print(receiver)
 
     def aggregate(self):
         """
@@ -89,9 +87,10 @@ class Client:
     def evaluate(self):
         for source, model in self.to_evaluate.items():
             _, test_acc = self.test(model)
+            print(self, source, ":", test_acc)
             source.evaluations[self] = test_acc
             if test_acc > self.best_acc:
-                self.best_model = model
+                self.architecture.load_state_dict(model.state_dict())
 
     def bid(self, deviation=None):
         if deviation:
