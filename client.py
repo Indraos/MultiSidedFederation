@@ -11,6 +11,7 @@ class Client:
     ):
 
         self.architecture = architecture
+
         self.train_dl = train_dl
         self.test_dl = test_dl
         self.criterion = criterion
@@ -20,6 +21,8 @@ class Client:
 
         self.client_num = Client.client_count
         Client.client_count += 1
+
+        self.model = self.architecture.state_dict()
         self.receivers = []
         self.pay = 0
         self.to_send = None
@@ -27,27 +30,23 @@ class Client:
         self.median = 0
         self.evaluations = {}
         self.best_acc = 0
-        self.best_model = None
         self.deviations = []
         self.payment_history = []
         self.allocation_history = []
 
-    def __str__(self):
+    def __repr__(self):
         return list(string.ascii_uppercase)[self.client_num]
 
     @property
     def allocation(self):
-        return self.test(self.architecture)[1]
+        return self.test(self.model)[1]
 
     def send(self):
         """
         Send model to each client in self.receivers and empty own received models.
         """
         for receiver in self.receivers:
-            receiver.to_evaluate = {}
-        for receiver in self.receivers:
             receiver.to_evaluate[self] = self.to_send
-        print("evaluating:")
 
     def aggregate(self):
         """
@@ -56,41 +55,42 @@ class Client:
         new_model = self.architecture
         new_state_dict = {k: 0 for k in new_model.state_dict()}
         for model in self.to_evaluate.values():
-            s_dict = model.state_dict()
-            for k, v in s_dict.items():
+            for k, v in model.items():
                 new_state_dict[k] += v
         new_state_dict = {
             k: v / len(self.to_evaluate) for k, v in new_state_dict.items()
         }
-        new_model.load_state_dict(new_state_dict)
-        return new_model
+        return new_state_dict
 
     def test(self, model):
+        self.architecture.load_state_dict(self.model)
         with torch.no_grad():
-            model.to(self.device)
-            model.eval()
+            self.architecture.to(self.device)
+            self.architecture.load_state_dict(model)
+            self.architecture.eval()
             batch_loss, batch_acc = [], []
             for features, labels in self.test_dl:
                 if torch.cuda.is_available():
                     features = features.cuda()
                     labels = labels.cuda()
-                logits = model(features)
+                logits = self.architecture(features)
                 loss = self.criterion(logits, labels)
                 batch_loss.append(loss.cpu())
                 pred = torch.argmax(logits, dim=1)
                 batch_acc.append(accuracy_score(labels.cpu(), pred.cpu()))
-            model.cpu()
-            testl = sum(batch_loss) / len(batch_loss)
-            testacc = round(sum(batch_acc) / len(batch_acc), 4)
-            return testl, testacc
+            self.architecture.cpu()
+            test_loss = sum(batch_loss) / len(batch_loss)
+            test_acc = sum(batch_acc) / len(batch_acc)
+            return test_loss, test_acc
 
     def evaluate(self):
+        self.to_send = {}
         for source, model in self.to_evaluate.items():
             _, test_acc = self.test(model)
-            print(self, source, ":", test_acc)
             source.evaluations[self] = test_acc
             if test_acc > self.best_acc:
-                self.architecture.load_state_dict(model.state_dict())
+                self.model = model
+                self.best_acc = test_acc
 
     def bid(self, deviation=None):
         if deviation:
@@ -99,15 +99,15 @@ class Client:
             self.bid = self.value
 
     def train(self, verbose=False):
-        model = self.architecture
-        print(f"Training client {self.person}...")
-        model.to(self.device)
-        model.train()
+        self.architecture.load_state_dict(self.model)
+        print(f"Training client {self}...")
+        self.architecture.to(self.device)
+        self.architecture.train()
         batch_loss, batch_acc = [], []
         for features, labels in self.train_dl:
             features, labels = features.to(self.device), labels.to(self.device)
             self.optimizer.zero_grad()
-            logits = model(features)
+            logits = self.architecture(features)
             loss = self.criterion(logits, labels)
             loss.backward()
             self.optimizer.step()
@@ -118,4 +118,4 @@ class Client:
             train_loss = sum(batch_loss) / len(batch_loss)
             train_acc = round(sum(batch_acc) / len(batch_acc), 4)
             return train_loss, train_acc
-        self.architecture = model
+        self.model = self.architecture.state_dict()

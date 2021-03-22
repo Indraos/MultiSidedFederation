@@ -31,7 +31,7 @@ class Server:
             value = client.bid * (self.best_accuracy - client.median)
             reserve_price = next_client.bid * (self.best_accuracy - next_client.median)
             if value > reserve_price:
-                client.model.load_state_dict(self.best_model.state_dict())
+                client.architecture.load_state_dict(self.best_model.state_dict())
                 client.pay += reserve_price
 
     def set_receivers(self):
@@ -69,9 +69,11 @@ class Server:
         self.best_model = best_model_owner.architecture
 
     def run_demand_auction(self):
+        for client in self.clients:
+            client.train()
         self.set_receivers()
         for sender in self.clients:
-            sender.to_send = sender.architecture
+            sender.to_send = sender.model
             sender.send()
         self.fed_eval()
         for client in self.clients:

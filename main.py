@@ -123,8 +123,8 @@ elif cifar:
 
 for client in clients:
     client.bid()
-for _ in range(rounds):
-    print("New round")
+for i in range(rounds):
+    print(f"Round {i}")
     server.run_demand_auction()
 
 server.plot("values", "values.png")
