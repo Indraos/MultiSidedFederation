@@ -25,8 +25,9 @@ device = "cuda" if torch.cuda.is_available else "cpu"
 
 
 class MnistNet(nn.Module):
-    def __init__(self):
+    def __init__(self, name):
         super().__init__()
+        self.name = name
         self.conv1 = nn.Sequential(nn.Conv2d(1, 10, 5), nn.MaxPool2d(2), nn.ReLU())
         self.conv2 = nn.Sequential(
             nn.Conv2d(10, 20, kernel_size=5), nn.Dropout2d(), nn.MaxPool2d(2), nn.ReLU()
@@ -45,8 +46,9 @@ class MnistNet(nn.Module):
 
 
 class CifarNet(nn.Module):
-    def __init__(self):
+    def __init__(self, name):
         super(CifarNet, self).__init__()
+        self.name = name
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
@@ -90,7 +92,7 @@ if mnist or fashion_mnist:
     client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
     clients = [
         Client(
-            MnistNet(),
+            MnistNet(i),
             client_dls[i],
             test_dl,
             criterion,
@@ -107,7 +109,7 @@ elif cifar:
 
     clients = [
         Client(
-            CifarNet(),
+            CifarNet(i),
             client_dls[i],
             test_dl,
             criterion,
