@@ -16,8 +16,8 @@ fashion_mnist = True
 cifar = False
 
 n = 3
-rounds = 5
-epochs = 2
+rounds = 1
+epochs = 3
 batch_size = 100
 client_values = [0.4, 0.5, 0.6]
 criterion = nn.CrossEntropyLoss()
@@ -25,9 +25,8 @@ device = "cuda" if torch.cuda.is_available else "cpu"
 
 
 class MnistNet(nn.Module):
-    def __init__(self, name):
+    def __init__(self):
         super().__init__()
-        self.name = name
         self.conv1 = nn.Sequential(nn.Conv2d(1, 10, 5), nn.MaxPool2d(2), nn.ReLU())
         self.conv2 = nn.Sequential(
             nn.Conv2d(10, 20, kernel_size=5), nn.Dropout2d(), nn.MaxPool2d(2), nn.ReLU()
@@ -46,9 +45,8 @@ class MnistNet(nn.Module):
 
 
 class CifarNet(nn.Module):
-    def __init__(self, name):
+    def __init__(self):
         super(CifarNet, self).__init__()
-        self.name = name
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
@@ -80,7 +78,6 @@ if cifar:
     transform = tt.Compose(
         [tt.ToTensor(), tt.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
-
     train_ds = CIFAR10(root=".", train=True, download=True, transform=transform)
     test_ds = CIFAR10(root=".", train=False, download=True, transform=transform)
 
@@ -90,14 +87,17 @@ test_dl = DataLoader(test_ds, batch_size, shuffle=False, num_workers=4)
 
 if mnist or fashion_mnist:
     client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
+    print([len(i) for i in client_dls])
+    models = [MnistNet() for i in range(n)]
+    opt = [Adam(models[i].parameters(), lr=0.001) for i in range(n)]
     clients = [
         Client(
-            MnistNet(i),
+            MnistNet(),
             client_dls[i],
             test_dl,
             criterion,
             device,
-            Adam,
+            opt[i],
             client_values[i],
         )
         for i in range(n)
@@ -106,26 +106,30 @@ if mnist or fashion_mnist:
 
 elif cifar:
     client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
-
+    models = [CifarNet(i) for i in range(n)]
+    opt = [Adam(models[i].parameters(), lr=0.001) for i in range(n)]
     clients = [
         Client(
-            CifarNet(i),
+            CifarNet(),
             client_dls[i],
             test_dl,
             criterion,
             device,
-            Adam,
+            opt[i],
             client_values[i],
         )
         for i in range(n)
     ]
     server = Server(clients, np.exp, utils.exponential_cutoff)
 
-for client in clients:
-    client.bid()
-for i in range(rounds):
-    print(f"Round {i}")
-    server.run_demand_auction()
+for i in range(5):
+    for client in clients:
+        client.train(verbose=True)
+        client.test(client.model)
+        # client.bid()
+# for i in range(rounds):
+#     print(f"Round {i}")
+#     server.run_demand_auction()
 
 server.plot("values", "values.png")
 server.plot("utilities", "utilities.png")

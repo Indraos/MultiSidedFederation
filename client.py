@@ -16,7 +16,7 @@ class Client:
         self.test_dl = test_dl
         self.criterion = criterion
         self.device = device
-        self.optimizer = optimizer(architecture.parameters(), lr=0.1)
+        self.optimizer = optimizer
         self.value = value
 
         self.client_num = Client.client_count
@@ -63,7 +63,7 @@ class Client:
         return new_state_dict
 
     def test(self, model):
-        self.architecture.load_state_dict(self.model)
+        self.architecture.load_state_dict(model)
         with torch.no_grad():
             self.architecture.to(self.device)
             self.architecture.load_state_dict(model)
@@ -111,11 +111,11 @@ class Client:
             loss = self.criterion(logits, labels)
             loss.backward()
             self.optimizer.step()
+        if verbose:
             batch_loss.append(loss.cpu())
             pred = torch.argmax(logits, dim=1)
             batch_acc.append(accuracy_score(labels.cpu(), pred.cpu()))
-        if verbose:
             train_loss = sum(batch_loss) / len(batch_loss)
             train_acc = round(sum(batch_acc) / len(batch_acc), 4)
-            return train_loss, train_acc
+            print(train_acc)
         self.model = self.architecture.state_dict()
