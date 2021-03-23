@@ -117,5 +117,5 @@ class Client:
             batch_acc.append(accuracy_score(labels.cpu(), pred.cpu()))
             train_loss = sum(batch_loss) / len(batch_loss)
             train_acc = round(sum(batch_acc) / len(batch_acc), 4)
-            print(train_acc)
+        self.architecture.cpu()
         self.model = self.architecture.state_dict()
