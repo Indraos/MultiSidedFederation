@@ -11,17 +11,16 @@ from torchvision.datasets import MNIST, FashionMNIST, CIFAR10
 from torch.utils.data import DataLoader
 import numpy as np
 
-mnist = True
+mnist = False
 fashion_mnist = False
-cifar = False
+cifar = True
 
 n = 3
-rounds = 3
+rounds = 6
 batch_size = 100
-client_values = [0.5, 2, 6]
+client_values = [0.1, 0.5, 0.6]
 criterion = nn.CrossEntropyLoss()
 device = "cuda" if torch.cuda.is_available else "cpu"
-print(device)
 
 
 class MnistNet(nn.Module):
@@ -102,7 +101,7 @@ if mnist or fashion_mnist:
 
 elif cifar:
     client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
-    models = [CifarNet(i) for i in range(n)]
+    models = [CifarNet() for i in range(n)]
     opt = [Adam(models[i].parameters(), lr=0.001) for i in range(n)]
     clients = [
         Client(
@@ -116,7 +115,9 @@ elif cifar:
         )
         for i in range(n)
     ]
-server = Server(clients, np.exp, utils.exponential_cutoff)
+server = Server(
+    clients, np.zeros_like, np.zeros_like  # no deviation pay, no cross-checking
+)
 
 for client in server.clients:
     client.bid()
@@ -124,5 +125,5 @@ for i in range(rounds):
     print(f"Round {i}")
     server.run_demand_auction()
 
-server.plot("values", "values.png")
-server.plot("utilities", "utilities.png")
+server.plot("value", "values.png")
+server.plot("utility", "utilities.png")

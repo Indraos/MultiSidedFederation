@@ -11,7 +11,7 @@ class Server:
         self.deviation_pay = deviation_pay
         self.transmission_criterion = transmission_criterion
 
-        self.best_accuracy = 0
+        self.best_acc = 0
 
     @property
     def client_num(self):
@@ -28,9 +28,12 @@ class Server:
         for client, next_client in zip(
             self.clients, np.random.permutation(self.clients)
         ):
-            value = client.bid * (self.best_accuracy - client.median)
-            reserve_price = next_client.bid * (self.best_accuracy - next_client.median)
+            value = client.bid * (self.best_acc - client.median)
+            reserve_price = next_client.bid * (self.best_acc - next_client.median)
             if value > reserve_price:
+                print(
+                    f"{client} saves best model, accuracy {self.best_acc}, pays {reserve_price}"
+                )
                 client.architecture.load_state_dict(self.best_model.state_dict())
                 client.pay += reserve_price
 
@@ -58,7 +61,9 @@ class Server:
 
     def fed_eval(self):
         for receiver in self.clients:
-            receiver.evaluate()
+            acc = receiver.evaluate()
+            if acc > self.best_acc:
+                self.best_acc = acc
         self.order_payments()
         self.execute_payments()
 
@@ -89,27 +94,22 @@ class Server:
     def plot(self, what, filename):
         """Testing error for all Demand Clients."""
         assert what in [
-            "values",
-            "utilities",
-        ], "Please specify either 'values' or 'utilities'"
+            "value",
+            "utility",
+        ], "Please specify either 'value' or 'utility'"
         y = []
         for client in self.clients:
-            if what == "values":
-                y.append(np.array(client.allocation_history))
-            if what == "utilities":
-                y.append(
-                    np.array(client.allocation_history) * client.bid
-                    - np.array(client.payment_history)
-                )
-        y = np.vstack(y).T
-        plt.plot(
-            list(range(self.rounds)), y, label=f"Client {client} - {client.bid}",
-        )
-        plt.ylabel(f"{what} Value")
+            plt.plot(
+                list(range(self.rounds)),
+                np.array(client.allocation_history)
+                if what == "value"
+                else np.array(client.allocation_history) * client.bid
+                - client.payment_history,
+                label=f"Client {client} - {client.bid}",
+            )
+        plt.ylabel(f"{what}")
         plt.xlabel("Federated Rounds")
-        plt.title(f"Client Models {what}", fontsize=18)
         plt.grid(True)
-        plt.legend(
-            title="Model - Bid Value", bbox_to_anchor=(1.05, 1), loc="upper left"
-        )
-        plt.savefig(filename)
+        plt.legend()
+        plt.savefig(filename, bbox_inches="tight")
+        plt.clf()
