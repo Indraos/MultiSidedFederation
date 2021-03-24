@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader
 import numpy as np
 
 mnist = False
-fashion_mnist = False
-cifar = True
+fashion_mnist = True
+cifar = False
 
 n = 3
 rounds = 6
