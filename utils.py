@@ -56,4 +56,4 @@ def exponential_cutoff(bid):
     Returns:
         float: likelihood of receiving a model
     """
-    return 1 - np.exp(-1 * bid)
+    return 1 - np.exp(-5 * bid)

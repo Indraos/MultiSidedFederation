@@ -89,8 +89,11 @@ class Client:
             _, test_acc = self.test(model)
             source.evaluations[self] = test_acc
             if test_acc > self.best_acc:
+                print(f"{self} saves model from {source}, accuracy {test_acc}")
                 self.model = model
                 self.best_acc = test_acc
+                return self.best_acc
+        return 0
 
     def bid(self, deviation=None):
         if deviation:
@@ -99,6 +102,7 @@ class Client:
             self.bid = self.value
 
     def train(self, verbose=False):
+        old_model = self.architecture.state_dict()
         self.architecture.load_state_dict(self.model)
         print(f"Training client {self}...")
         self.architecture.to(self.device)
@@ -117,5 +121,10 @@ class Client:
             batch_acc.append(accuracy_score(labels.cpu(), pred.cpu()))
             train_loss = sum(batch_loss) / len(batch_loss)
             train_acc = round(sum(batch_acc) / len(batch_acc), 4)
-            print(train_acc)
-        self.model = self.architecture.state_dict()
+        self.architecture.cpu()
+        model = self.architecture.state_dict()
+        if self.test(model)[1] > self.test(old_model)[1]:
+            self.model = model
+            self.best_acc = self.test(model)[1]
+        else:
+            self.model = old_model

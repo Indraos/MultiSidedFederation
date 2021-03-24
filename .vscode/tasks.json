@@ -7,6 +7,16 @@
             "label": "echo",
             "type": "shell",
             "command": "echo Hello"
+        },
+        {
+            "label": "python",
+            "type": "shell",
+            "command": "source activate tensorflow2_latest_p37 & python main.py",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         }
     ]
 }

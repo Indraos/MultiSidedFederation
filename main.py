@@ -16,10 +16,9 @@ fashion_mnist = True
 cifar = False
 
 n = 3
-rounds = 1
-epochs = 3
+rounds = 6
 batch_size = 100
-client_values = [0.4, 0.5, 0.6]
+client_values = [0.1, 0.5, 0.6]
 criterion = nn.CrossEntropyLoss()
 device = "cuda" if torch.cuda.is_available else "cpu"
 
@@ -81,18 +80,15 @@ if cifar:
     train_ds = CIFAR10(root=".", train=True, download=True, transform=transform)
     test_ds = CIFAR10(root=".", train=False, download=True, transform=transform)
 
-
-train_dl = DataLoader(train_ds, batch_size, shuffle=True, num_workers=4)
-test_dl = DataLoader(test_ds, batch_size, shuffle=False, num_workers=4)
+test_dl = DataLoader(test_ds, batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
 if mnist or fashion_mnist:
     client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
-    print([len(i) for i in client_dls])
     models = [MnistNet() for i in range(n)]
-    opt = [Adam(models[i].parameters(), lr=0.001) for i in range(n)]
+    opt = [Adam(models[i].parameters(), lr=0.01) for i in range(n)]
     clients = [
         Client(
-            MnistNet(),
+            models[i],
             client_dls[i],
             test_dl,
             criterion,
@@ -102,15 +98,14 @@ if mnist or fashion_mnist:
         )
         for i in range(n)
     ]
-    server = Server(clients, np.exp, utils.exponential_cutoff)
 
 elif cifar:
     client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
-    models = [CifarNet(i) for i in range(n)]
+    models = [CifarNet() for i in range(n)]
     opt = [Adam(models[i].parameters(), lr=0.001) for i in range(n)]
     clients = [
         Client(
-            CifarNet(),
+            models[i],
             client_dls[i],
             test_dl,
             criterion,
@@ -120,16 +115,15 @@ elif cifar:
         )
         for i in range(n)
     ]
-    server = Server(clients, np.exp, utils.exponential_cutoff)
+server = Server(
+    clients, np.zeros_like, np.zeros_like  # no deviation pay, no cross-checking
+)
 
-for i in range(5):
-    for client in clients:
-        client.train(verbose=True)
-        client.test(client.model)
-        # client.bid()
-# for i in range(rounds):
-#     print(f"Round {i}")
-#     server.run_demand_auction()
+for client in server.clients:
+    client.bid()
+for i in range(rounds):
+    print(f"Round {i}")
+    server.run_demand_auction()
 
-server.plot("values", "values.png")
-server.plot("utilities", "utilities.png")
+server.plot("value", "values.png")
+server.plot("utility", "utilities.png")
