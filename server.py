@@ -29,7 +29,7 @@ class Server:
             self.clients, np.random.permutation(self.clients)
         ):
             value = client.bid * (self.best_acc - client.median)
-            reserve_price = next_client.bid * (self.best_acc - next_client.median)
+            reserve_price = next_client.bid * (self.best_acc - client.median)
             if value > reserve_price:
                 print(
                     f"{client} saves best model, accuracy {self.best_acc}, pays {reserve_price}"

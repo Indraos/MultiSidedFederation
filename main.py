@@ -15,13 +15,6 @@ mnist = False
 fashion_mnist = True
 cifar = False
 
-n = 3
-rounds = 6
-batch_size = 100
-client_values = [0.1, 0.5, 0.6]
-criterion = nn.CrossEntropyLoss()
-device = "cuda" if torch.cuda.is_available else "cpu"
-
 
 class MnistNet(nn.Module):
     def __init__(self):
@@ -63,67 +56,110 @@ class CifarNet(nn.Module):
         return x
 
 
-if mnist:
-    transform = tt.Compose([tt.ToTensor(), tt.Normalize((0.1307,), (0.3081,))])
-    train_ds = MNIST(root=".", train=True, download=True, transform=transform)
-    test_ds = MNIST(root=".", train=False, download=True, transform=transform)
+def set_up_experiment(
+    type,
+    num_clients=3,
+    batch_size=100,
+    deviation_pay=np.zeros_like,
+    cross_checking=np.zeros_like,
+    client_values=[0.8, 0.5, 0.6],
+):
+    criterion = nn.CrossEntropyLoss()
+    device = "cuda" if torch.cuda.is_available else "cpu"
+    assert type in [
+        "mnist",
+        "fashion_mnist",
+        "cifar",
+    ], "Only mnist, fashion_mnist and cifar supported."
+    if type == "mnist":
+        transform = tt.Compose([tt.ToTensor(), tt.Normalize((0.1307,), (0.3081,))])
+        train_ds = MNIST(root=".", train=True, download=True, transform=transform)
+        test_ds = MNIST(root=".", train=False, download=True, transform=transform)
 
-if fashion_mnist:
-    transform = tt.Compose([tt.ToTensor(), tt.Normalize((0.2860,), (0.3530,))])
-    train_ds = FashionMNIST(root=".", train=True, download=True, transform=transform)
-    test_ds = FashionMNIST(root=".", train=False, download=True, transform=transform)
+    if type == "fashion_mnist":
+        transform = tt.Compose([tt.ToTensor(), tt.Normalize((0.2860,), (0.3530,))])
+        train_ds = FashionMNIST(
+            root=".", train=True, download=True, transform=transform
+        )
+        test_ds = FashionMNIST(
+            root=".", train=False, download=True, transform=transform
+        )
 
-if cifar:
-    transform = tt.Compose(
-        [tt.ToTensor(), tt.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+    if type == "cifar":
+        transform = tt.Compose(
+            [tt.ToTensor(), tt.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+        )
+        train_ds = CIFAR10(root=".", train=True, download=True, transform=transform)
+        test_ds = CIFAR10(root=".", train=False, download=True, transform=transform)
+
+    test_dl = DataLoader(
+        test_ds, batch_size, shuffle=False, num_workers=4, pin_memory=True
     )
-    train_ds = CIFAR10(root=".", train=True, download=True, transform=transform)
-    test_ds = CIFAR10(root=".", train=False, download=True, transform=transform)
 
-test_dl = DataLoader(test_ds, batch_size, shuffle=False, num_workers=4, pin_memory=True)
+    if type in ["mnist", "fashion_mnist"]:
+        client_dls = utils.iid_clients(train_ds, num_clients, 1000, 10000, batch_size)
+        models = [MnistNet() for i in range(num_clients)]
+        opt = [Adam(models[i].parameters(), lr=0.01) for i in range(num_clients)]
+        clients = [
+            Client(
+                models[i],
+                client_dls[i],
+                test_dl,
+                criterion,
+                device,
+                opt[i],
+                client_values[i],
+            )
+            for i in range(num_clients)
+        ]
 
-if mnist or fashion_mnist:
-    client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
-    models = [MnistNet() for i in range(n)]
-    opt = [Adam(models[i].parameters(), lr=0.01) for i in range(n)]
-    clients = [
-        Client(
-            models[i],
-            client_dls[i],
-            test_dl,
-            criterion,
-            device,
-            opt[i],
-            client_values[i],
-        )
-        for i in range(n)
-    ]
+    else:
+        client_dls = utils.iid_clients(train_ds, num_clients, 1000, 10000, batch_size)
+        models = [CifarNet() for i in range(num_clients)]
+        opt = [Adam(models[i].parameters(), lr=0.001) for i in range(num_clients)]
+        clients = [
+            Client(
+                models[i],
+                client_dls[i],
+                test_dl,
+                criterion,
+                device,
+                opt[i],
+                client_values[i],
+            )
+            for i in range(num_clients)
+        ]
+    server = Server(
+        clients, np.zeros_like, np.zeros_like  # no deviation pay, no cross-checking
+    )
+    return server
 
-elif cifar:
-    client_dls = utils.iid_clients(train_ds, n, 1000, 10000, batch_size)
-    models = [CifarNet() for i in range(n)]
-    opt = [Adam(models[i].parameters(), lr=0.001) for i in range(n)]
-    clients = [
-        Client(
-            models[i],
-            client_dls[i],
-            test_dl,
-            criterion,
-            device,
-            opt[i],
-            client_values[i],
-        )
-        for i in range(n)
-    ]
-server = Server(
-    clients, np.zeros_like, np.zeros_like  # no deviation pay, no cross-checking
-)
 
-for client in server.clients:
-    client.bid()
-for i in range(rounds):
-    print(f"Round {i}")
-    server.run_demand_auction()
+# Experiment 1: An Auction Simulation
+# rounds = 6
+# for dataset in ["mnist", "fashion_mnist", "cifar"]:
+#     server = set_up_experiment(dataset)
+#     for client in server.clients:
+#         client.bid()
+#     for i in range(rounds):
+#         print(f"Round {i}")
+#         server.run_demand_auction()
+#         for plot_type in ["value", "utility"]:
+#             server.plot(plot_type, f"{dataset}_{plot_type}.png")
 
-server.plot("value", "values.png")
-server.plot("utility", "utilities.png")
+rounds = 6
+deviations = [0, 0.2, 0.4, 0.5, 0.6, 0.8, 1]
+deviation_utility = []
+for dataset in ["mnist"]:
+    server = set_up_experiment(dataset)
+    for deviation in [0, 0.2, 0.4, 0.5, 0.6, 0.8, 1]:
+        for client in server.clients:
+            client.reset()
+        server.clients[0].enter_bid()
+        server.clients[2].enter_bid()
+        server.clients[1].enter_bid(deviation=deviation)
+        for i in range(rounds):
+            print(f"Round {i}")
+            server.run_demand_auction()
+        deviation_utility.append(server.clients[1].utility_history[-1])
+print(deviation_utility)

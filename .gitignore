@@ -162,3 +162,10 @@ cifar-10-python.tar.gz
 utilities.png
 .gitignore
 values.png
+cifar_utility.png
+.gitignore
+fashion_mnist_utility.png
+fashion_mnist_value.png
+cifar_value.png
+mnist_value.png
+mnist_utility.png
