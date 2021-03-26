@@ -10,6 +10,7 @@ import torchvision.transforms as tt
 from torchvision.datasets import MNIST, FashionMNIST, CIFAR10
 from torch.utils.data import DataLoader
 import numpy as np
+import matplotlib.pyplot as plt
 
 mnist = False
 fashion_mnist = True
@@ -136,30 +137,36 @@ def set_up_experiment(
 
 
 # Experiment 1: An Auction Simulation
-# rounds = 6
-# for dataset in ["mnist", "fashion_mnist", "cifar"]:
-#     server = set_up_experiment(dataset)
-#     for client in server.clients:
-#         client.bid()
-#     for i in range(rounds):
-#         print(f"Round {i}")
-#         server.run_demand_auction()
-#         for plot_type in ["value", "utility"]:
-#             server.plot(plot_type, f"{dataset}_{plot_type}.png")
-
 rounds = 6
-deviations = [0, 0.2, 0.4, 0.5, 0.6, 0.8, 1]
-deviation_utility = []
-for dataset in ["mnist"]:
+for dataset in ["mnist", "fashion_mnist", "cifar"]:
     server = set_up_experiment(dataset)
-    for deviation in [0, 0.2, 0.4, 0.5, 0.6, 0.8, 1]:
-        for client in server.clients:
-            client.reset()
-        server.clients[0].enter_bid()
-        server.clients[2].enter_bid()
-        server.clients[1].enter_bid(deviation=deviation)
-        for i in range(rounds):
-            print(f"Round {i}")
-            server.run_demand_auction()
-        deviation_utility.append(server.clients[1].utility_history[-1])
-print(deviation_utility)
+    for client in server.clients:
+        client.enter_bid()
+    for i in range(rounds):
+        print(f"Round {i}")
+        server.run_demand_auction()
+        for plot_type in ["value", "utility"]:
+            server.plot(plot_type, f"{dataset}_{plot_type}.png")
+
+# rounds = 6
+# deviations = [0, 0.2, 0.4, 0.5, 0.6, 0.8, 1]
+# deviation_utility = []
+# for dataset in ["mnist"]:
+#     server = set_up_experiment(dataset)
+#     for deviation in [0, 0.2, 0.4, 0.5, 0.6, 0.8, 1]:
+#         for client in server.clients:
+#             client.reset()
+#         server.clients[0].enter_bid()
+#         server.clients[2].enter_bid()
+#         server.clients[1].enter_bid(deviation=deviation)
+#         for i in range(rounds):
+#             print(f"Round {i}")
+#             server.run_demand_auction()
+#         deviation_utility.append(server.clients[1].utility_history[-1])
+#     print(deviation_utility)
+#     plt.clf()
+#     plt.plot(deviations, deviation_utility)
+#     plt.ylabel("Utility")
+#     plt.xlabel("Submitted Bid")
+#     plt.grid(True)
+#     plt.savefig("deviations.png")
