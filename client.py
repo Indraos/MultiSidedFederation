@@ -1,6 +1,5 @@
 import string
 import torch
-import numpy as np
 from sklearn.metrics import accuracy_score
 
 
@@ -36,19 +35,11 @@ class Client:
         self.allocation_history = []
 
     def __repr__(self):
-        return list(string.ascii_uppercase)[
-            self.client_num % len(string.ascii_uppercase)
-        ]
+        return list(string.ascii_uppercase)[self.client_num]
 
     @property
     def allocation(self):
         return self.test(self.model)[1]
-
-    @property
-    def utility_history(self):
-        return np.array(self.allocation_history) * self.bid - np.array(
-            self.payment_history
-        )
 
     def send(self):
         """
@@ -92,12 +83,6 @@ class Client:
             test_acc = sum(batch_acc) / len(batch_acc)
             return test_loss, test_acc
 
-    def reset(self):
-        for layer in self.architecture.children():
-            if hasattr(layer, "reset_parameters"):
-                layer.reset_parameters()
-        self.model = self.architecture.state_dict()
-
     def evaluate(self):
         self.to_send = {}
         for source, model in self.to_evaluate.items():
@@ -110,7 +95,7 @@ class Client:
                 return self.best_acc
         return 0
 
-    def enter_bid(self, deviation=None):
+    def bid(self, deviation=None):
         if deviation:
             self.bid = deviation
         else:
