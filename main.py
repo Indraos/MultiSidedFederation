@@ -148,25 +148,26 @@ for dataset in ["mnist", "fashion_mnist", "cifar"]:
         for plot_type in ["value", "utility"]:
             server.plot(plot_type, f"{dataset}_{plot_type}.png")
 
-# rounds = 6
-# deviations = [0, 0.2, 0.4, 0.5, 0.6, 0.8, 1]
-# deviation_utility = []
-# for dataset in ["mnist"]:
-#     server = set_up_experiment(dataset)
-#     for deviation in [0, 0.2, 0.4, 0.5, 0.6, 0.8, 1]:
-#         for client in server.clients:
-#             client.reset()
-#         server.clients[0].enter_bid()
-#         server.clients[2].enter_bid()
-#         server.clients[1].enter_bid(deviation=deviation)
-#         for i in range(rounds):
-#             print(f"Round {i}")
-#             server.run_demand_auction()
-#         deviation_utility.append(server.clients[1].utility_history[-1])
-#     print(deviation_utility)
-#     plt.clf()
-#     plt.plot(deviations, deviation_utility)
-#     plt.ylabel("Utility")
-#     plt.xlabel("Submitted Bid")
-#     plt.grid(True)
-#     plt.savefig("deviations.png")
+# Experiment 2: Profitability of Deviations
+rounds = 6
+deviations = [0, 0.2, 0.4, 0.5, 0.6, 0.8, 1]
+deviation_utility = []
+for dataset in ["mnist"]:
+    server = set_up_experiment(dataset)
+    for deviation in [0, 0.2, 0.4, 0.5, 0.6, 0.8, 1]:
+        for client in server.clients:
+            client.reset()
+        server.clients[0].enter_bid()
+        server.clients[2].enter_bid()
+        server.clients[1].enter_bid(deviation=deviation)
+        for i in range(rounds):
+            print(f"Round {i}")
+            server.run_demand_auction()
+        deviation_utility.append(server.clients[1].utility_history[-1])
+    print(deviation_utility)
+    plt.clf()
+    plt.plot(deviations, deviation_utility)
+    plt.ylabel("Utility")
+    plt.xlabel("Submitted Bid")
+    plt.grid(True)
+    plt.savefig("deviations.png")
