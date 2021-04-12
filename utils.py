@@ -24,7 +24,7 @@ def biased_partition(sum, num, lower, upper):
     return partition
 
 
-def iid_clients(dataset, n, lower, upper, batch_size):
+def iid_clients(dataset, n, lower, upper, batch_size, fixed_split=None):
     """Generate list of iid clients
 
     Args:
@@ -37,13 +37,17 @@ def iid_clients(dataset, n, lower, upper, batch_size):
     Returns:
         [Data]: Datasets
     """
-    partition = biased_partition(len(dataset), n, lower, upper)
+    if not fixed_split:
+        partition = biased_partition(len(dataset), n, lower, upper)
+    else:
+        partition = [int(item * len(dataset)) for item in fixed_split]
+        partition[-1] = len(dataset) - sum(partition[:-1])
+        print(len(dataset), sum(partition))
     client_ds = random_split(dataset, partition)
     client_dls = [
         DataLoader(ds, batch_size, shuffle=True, num_workers=4, pin_memory=True)
         for ds in client_ds
     ]
-    print(partition)
     return client_dls
 
 
