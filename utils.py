@@ -42,7 +42,6 @@ def iid_clients(dataset, n, lower, upper, batch_size, fixed_split=None):
     else:
         partition = [int(item * len(dataset)) for item in fixed_split]
         partition[-1] = len(dataset) - sum(partition[:-1])
-        print(len(dataset), sum(partition))
     client_ds = random_split(dataset, partition)
     client_dls = [
         DataLoader(ds, batch_size, shuffle=True, num_workers=4, pin_memory=True)
