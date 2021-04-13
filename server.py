@@ -34,7 +34,7 @@ class Server:
                 print(
                     f"{client} saves best model, accuracy {self.best_acc}, pays {reserve_price}"
                 )
-                client.architecture.load_state_dict(self.best_model.state_dict())
+                client.model = self.best_model
                 client.pay += reserve_price
 
     def set_receivers(self):
@@ -61,9 +61,10 @@ class Server:
 
     def fed_eval(self):
         for receiver in self.clients:
-            acc = receiver.evaluate()
+            acc, model = receiver.evaluate()
             if acc > self.best_acc:
                 self.best_acc = acc
+                self.best_model = model
         self.order_payments()
         self.execute_payments()
 
@@ -71,7 +72,7 @@ class Server:
         best_acc = {client: client.best_acc for client in self.clients}
         best_model_owner = max(best_acc, key=best_acc.get)
         self.best_acc = best_model_owner.best_acc
-        self.best_model = best_model_owner.architecture
+        self.best_model = best_model_owner.model
 
     def run_demand_auction(self):
         for client in self.clients:

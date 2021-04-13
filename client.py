@@ -35,7 +35,9 @@ class Client:
         self.allocation_history = []
 
     def __repr__(self):
-        return list(string.ascii_uppercase)[self.client_num]
+        return list(string.ascii_uppercase)[
+            self.client_num % len(list(string.ascii_uppercase))
+        ]
 
     @property
     def allocation(self):
@@ -92,8 +94,8 @@ class Client:
                 print(f"{self} saves model from {source}, accuracy {test_acc}")
                 self.model = model
                 self.best_acc = test_acc
-                return self.best_acc
-        return 0
+                return self.best_acc, self.model
+        return 0, None
 
     def bid(self, deviation=None):
         if deviation:

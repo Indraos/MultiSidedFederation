@@ -13,7 +13,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 n = 3
-rounds = 2
 batch_size = 100
 client_values = [0.1, 0.5, 0.6]
 datasets = ["mnist", "fashion_mnist", "cifar"]
@@ -129,15 +128,16 @@ def set_up(dataset):
     server = Server(
         clients, np.zeros_like, np.zeros_like  # no deviation pay, no cross-checking
     )
-    return server, clients
+    return server, clients, client_dls, test_dl
 
 
-experiment_1 = False
+experiment_1 = True
 experiment_2 = True
 # Experiment 1
+rounds = 6
 if experiment_1:
     for dataset in datasets:
-        server, clients = set_up(dataset)
+        server, clients, _, _ = set_up(dataset)
         for client in server.clients:
             client.bid()
         for i in range(rounds):
@@ -146,19 +146,28 @@ if experiment_1:
         server.plot("value", f"{dataset}_values.png")
 
 # Experiment 2
+rounds = 3
+
 if experiment_2:
     for dataset in datasets:
+        _, clients, train_dls, test_dl = set_up(dataset)
+        models = [client.architecture.state_dict() for client in clients]
         utilities = []
         for deviation in deviations:
-            server, clients = set_up(dataset)
+            server, clients, _, _ = set_up(dataset)
+            for index, client in enumerate(clients):
+                client.train_dl = train_dls[index]
+                client.test_dl = test_dl
+                client.architecture.load_state_dict(models[index])
             clients[0].bid()
             clients[1].bid(deviation)
             clients[2].bid()
+            clients
             for i in range(rounds):
                 print(f"Round {i}")
                 server.run_demand_auction()
             utilities.append(
-                clients[1].bid * sum(clients[1].allocation_history)
+                0.5 * sum(clients[1].allocation_history)
                 - sum(clients[1].payment_history)
             )
         plt.plot(deviations, utilities)
