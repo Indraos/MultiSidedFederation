@@ -161,4 +161,4 @@ cifar-10-python.tar.gz
 .vscode/tasks.json
 utilities.png
 .gitignore
-values.png
+*.png
